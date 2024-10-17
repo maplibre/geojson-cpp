@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build
       - run: build/test
       - run: build/test_value

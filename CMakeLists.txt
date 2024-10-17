@@ -17,7 +17,7 @@ include(FetchContent)
 FetchContent_Declare(
   geometry-hpp
   GIT_REPOSITORY https://github.com/maplibre/geometry.hpp
-  GIT_TAG origin/main
+  GIT_TAG 1297004bd70ed281d0dc4ecac4fbc41b22e50030
   EXCLUDE_FROM_ALL
 )
 
