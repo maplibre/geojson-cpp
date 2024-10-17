@@ -1,27 +1,27 @@
-#include <mapbox/geojson.hpp>
-#include <mapbox/geojson/rapidjson.hpp>
-#include <mapbox/geojson/value.hpp>
-#include <mapbox/geometry.hpp>
+#include <maplibre/geojson.hpp>
+#include <maplibre/geojson/rapidjson.hpp>
+#include <maplibre/geojson/value.hpp>
+#include <maplibre/geometry.hpp>
 
 #include <cassert>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
-using namespace mapbox::geojson;
+using namespace maplibre::geojson;
 
 std::string toString(const rapidjson_value &jsvalue) {
     assert(jsvalue.IsString());
     return { jsvalue.GetString(), jsvalue.GetStringLength() };
 }
 
-mapbox::geojson::value toValue(const rapidjson_value &jsvalue) {
+maplibre::geojson::value toValue(const rapidjson_value &jsvalue) {
     if (jsvalue.IsNull()) {
         return {};
     }
 
     if (jsvalue.IsArray()) {
-        mapbox::geojson::value::array_type values;
+        maplibre::geojson::value::array_type values;
         values.reserve(jsvalue.GetArray().Size());
         for (const auto &v : jsvalue.GetArray()) {
             values.emplace_back(toValue(v));
@@ -30,7 +30,7 @@ mapbox::geojson::value toValue(const rapidjson_value &jsvalue) {
     }
 
     if (jsvalue.IsObject()) {
-        mapbox::geojson::value::object_type valueMap;
+        maplibre::geojson::value::object_type valueMap;
         for (const auto &pair : jsvalue.GetObject()) {
             valueMap.emplace(toString(pair.name), toValue(pair.value));
         }
@@ -69,12 +69,12 @@ void test(const std::string &path, bool use_convert = false) {
         throw std::runtime_error("Can't parse geojson document");
     }
 
-    const mapbox::geojson::value convertedValue = toValue(d);
-    const geojson result                        = convert(convertedValue);
-    const mapbox::geojson::value roundTripValue = convert(result);
-    const geojson expected                      = use_convert ? convert<geometry>(d) : parse(json);
-    const geojson resultFromStringValue         = convert(value{ json });
-    const geojson roundTrip                     = convert(roundTripValue);
+    const maplibre::geojson::value convertedValue = toValue(d);
+    const geojson result                          = convert(convertedValue);
+    const maplibre::geojson::value roundTripValue = convert(result);
+    const geojson expected                        = use_convert ? convert<geometry>(d) : parse(json);
+    const geojson resultFromStringValue           = convert(value{ json });
+    const geojson roundTrip                       = convert(roundTripValue);
 
     assert(expected == result);
     assert(expected == resultFromStringValue);
