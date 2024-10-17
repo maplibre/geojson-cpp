@@ -1,8 +1,9 @@
 #pragma once
 
-#include <mapbox/variant.hpp>
 #include <maplibre/feature.hpp>
 #include <maplibre/geometry.hpp>
+
+#include <variant>
 
 namespace maplibre {
 namespace geojson {
@@ -24,7 +25,7 @@ using identifier         = maplibre::feature::identifier;
 using feature            = maplibre::feature::feature<double>;
 using feature_collection = maplibre::feature::feature_collection<double>;
 
-using geojson = mapbox::util::variant<geometry, feature, feature_collection>;
+using geojson = std::variant<geometry, feature, feature_collection>;
 
 // Parse inputs of known types. Instantiations are provided for geojson, geometry, feature, and
 // feature_collection.

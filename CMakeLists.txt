@@ -17,22 +17,13 @@ include(FetchContent)
 FetchContent_Declare(
   geometry-hpp
   GIT_REPOSITORY https://github.com/maplibre/geometry.hpp
-  GIT_TAG 1297004bd70ed281d0dc4ecac4fbc41b22e50030
+  GIT_TAG origin/main
   EXCLUDE_FROM_ALL
 )
 
 FetchContent_MakeAvailable(geometry-hpp)
 
 include_directories(SYSTEM ${geometry-hpp_SOURCE_DIR}/include)
-
-FetchContent_Declare(
-  MapboxVariant
-  GIT_REPOSITORY https://github.com/mapbox/variant.git
-  GIT_TAG origin/master
-)
-FetchContent_MakeAvailable(MapboxVariant)
-
-include_directories(SYSTEM ${mapboxvariant_SOURCE_DIR}/include)
 
 FetchContent_Declare(
   rapidjson
@@ -43,7 +34,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(rapidjson)
 include_directories(SYSTEM ${rapidjson_SOURCE_DIR}/include)
-
 
 add_executable(
   test

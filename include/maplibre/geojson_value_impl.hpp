@@ -3,6 +3,9 @@
 #include <maplibre/geojson.hpp>
 #include <maplibre/geojson/value.hpp>
 
+#include <cassert>
+#include <variant>
+
 namespace maplibre {
 namespace geojson {
 
@@ -10,9 +13,17 @@ using error = std::runtime_error;
 
 namespace {
 
+template <class... Ts>
+struct overloaded : Ts... {
+    using Ts::operator()...;
+};
+
 double getDouble(const value &numVal) {
-    return numVal.match([](double n) { return n; }, [](uint64_t n) { return n; }, [](int64_t n) { return n; },
-                        [](const auto &) -> double { throw error("coordinate's value must be of a Number type"); });
+    return std::visit(
+        overloaded{ [](double n) -> double { return n; }, [](uint64_t n) -> double { return n; },
+                    [](int64_t n) -> double { return n; },
+                    [](const auto &) -> double { throw error("coordinate's value must be of a Number type"); } },
+        numVal);
 }
 
 } // namespace
@@ -22,8 +33,8 @@ T convert(const value &);
 
 template <>
 point convert<point>(const value &val) {
-    assert(val.is<std::shared_ptr<std::vector<value>>>());
-    if (!val.is<std::shared_ptr<std::vector<value>>>()) {
+    assert(std::holds_alternative<std::shared_ptr<std::vector<value>>>(val));
+    if (!std::holds_alternative<std::shared_ptr<std::vector<value>>>(val)) {
         throw error("coordinates must be of an Array type");
     }
 
@@ -37,8 +48,8 @@ point convert<point>(const value &val) {
 
 template <typename Container>
 Container convert(const value &val) {
-    assert(val.is<std::shared_ptr<std::vector<value>>>());
-    if (!val.is<std::shared_ptr<std::vector<value>>>()) {
+    assert(std::holds_alternative<std::shared_ptr<std::vector<value>>>(val));
+    if (!std::holds_alternative<std::shared_ptr<std::vector<value>>>(val)) {
         throw error("coordinates must be of an Array type");
     }
 
@@ -64,7 +75,7 @@ geometry convert<geometry>(const value &val) {
     }
 
     const auto &typeValue = typeIt->second;
-    if (!typeValue.is<std::string>()) {
+    if (!std::holds_alternative<std::string>(typeValue)) {
         throw error("Geometry 'type' property must be of a String type");
     }
 
@@ -123,7 +134,7 @@ feature convert<feature>(const value &val) {
     }
 
     const auto &typeValue = typeIt->second;
-    if (!typeValue.is<std::string>()) {
+    if (!std::holds_alternative<std::string>(typeValue)) {
         throw error("Feature 'type' property must be of a String type");
     }
 
@@ -139,17 +150,19 @@ feature convert<feature>(const value &val) {
     feature result{ convert<geometry>(geometryIt->second) };
     auto idIt = valueObject->find("id");
     if (idIt != valueObject->end()) {
-        result.id = idIt->second.match(
-            [](const std::string &string) -> identifier { return { string }; },
-            [](int64_t number) -> identifier { return { number }; },
-            [](uint64_t number) -> identifier { return { number }; },
-            [](double number) -> identifier { return { number }; },
-            [](const auto &) -> identifier { throw error("Feature id must be a string or number"); });
+        result.id = std::visit(
+            overloaded{ [](const std::string &string) -> identifier { return { string }; },
+                        [](int64_t number) -> identifier { return { number }; },
+                        [](uint64_t number) -> identifier { return { number }; },
+                        [](double number) -> identifier { return { number }; },
+                        [](const auto &) -> identifier { throw error("Feature id must be a string or number"); } },
+            idIt->second);
     }
 
     auto propertiesIt = valueObject->find("properties");
-    if (propertiesIt != valueObject->end() && !propertiesIt->second.is<maplibre::geojson::null_value_t>()) {
-        if (!propertiesIt->second.is<value::object_ptr_type>()) {
+    if (propertiesIt != valueObject->end() &&
+        !std::holds_alternative<maplibre::geojson::null_value_t>(propertiesIt->second)) {
+        if (!std::holds_alternative<value::object_ptr_type>(propertiesIt->second)) {
             throw error("properties must be an object");
         }
         result.properties = *propertiesIt->second.getObject();
@@ -171,7 +184,7 @@ geojson convert<geojson>(const value &val) {
     }
 
     const auto &typeValue = typeIt->second;
-    if (!typeValue.is<std::string>()) {
+    if (!std::holds_alternative<std::string>(typeValue)) {
         throw error("GeoJSON 'type' property must be of a String type");
     }
 
@@ -205,14 +218,15 @@ geojson convert<geojson>(const value &val) {
 template feature_collection convert<feature_collection>(const value &);
 
 geojson convert(const value &val) {
-    return val.match(
-        [](const null_value_t &) -> geojson { return geometry{}; },
-        [](const std::string &jsonString) { return jsonString == "null" ? geometry{} : parse(jsonString); },
-        [](const value::object_type &jsonObject) {
-            return convert<geojson>(static_cast<const maplibre::geojson::value &>(jsonObject));
-        },
-        [](const value::object_ptr_type obj) { return convert<geojson>(*obj); },
-        [](const auto &) -> geojson { throw error("Invalid GeoJSON value was provided."); });
+    return std::visit(
+        overloaded{ [](const null_value_t &) -> geojson { return geometry{}; },
+                    [](const std::string &jsonString) { return jsonString == "null" ? geometry{} : parse(jsonString); },
+                    [](const value::object_type &jsonObject) {
+                        return convert<geojson>(static_cast<const maplibre::geojson::value &>(jsonObject));
+                    },
+                    [](const value::object_ptr_type obj) { return convert<geojson>(*obj); },
+                    [](const auto &) -> geojson { throw error("Invalid GeoJSON value was provided."); } },
+        val);
 }
 
 value convert(const point &p) {
@@ -231,30 +245,36 @@ value convert(const Cont &points) {
 
 template <>
 value convert(const geometry &geom) {
-    return geom.match(
-        [](const empty &) { return value{}; },
-        [](const point &p) { return value::object_type{ { "type", "Point" }, { "coordinates", convert(p) } }; },
-        [](const multi_point &mp) {
-            return value::object_type{ { "type", "MultiPoint" }, { "coordinates", convert(mp) } };
-        },
-        [](const line_string &ls) {
-            return value::object_type{ { "type", "LineString" }, { "coordinates", convert(ls) } };
-        },
-        [](const multi_line_string &mls) {
-            return value::object_type{ { "type", "MultiLineString" }, { "coordinates", convert(mls) } };
-        },
-        [](const polygon &pol) { return value::object_type{ { "type", "Polygon" }, { "coordinates", convert(pol) } }; },
-        [](const multi_polygon &mpol) {
-            return value::object_type{ { "type", "MultiPolygon" }, { "coordinates", convert(mpol) } };
-        },
-        [](const geometry_collection &gc) {
-            value::array_type geometries;
-            geometries.reserve(gc.size());
-            for (const auto &gcGeom : gc) {
-                geometries.push_back(convert(gcGeom));
-            }
-            return value::object_type{ { "type", "GeometryCollection" }, { "geometries", std::move(geometries) } };
-        });
+    return std::visit(
+        overloaded{ [](const empty &) { return value{}; },
+                    [](const point &p) -> value {
+                        return value::object_type{ { "type", "Point" }, { "coordinates", convert(p) } };
+                    },
+                    [](const multi_point &mp) -> value {
+                        return value::object_type{ { "type", "MultiPoint" }, { "coordinates", convert(mp) } };
+                    },
+                    [](const line_string &ls) -> value {
+                        return value::object_type{ { "type", "LineString" }, { "coordinates", convert(ls) } };
+                    },
+                    [](const multi_line_string &mls) -> value {
+                        return value::object_type{ { "type", "MultiLineString" }, { "coordinates", convert(mls) } };
+                    },
+                    [](const polygon &pol) -> value {
+                        return value::object_type{ { "type", "Polygon" }, { "coordinates", convert(pol) } };
+                    },
+                    [](const multi_polygon &mpol) -> value {
+                        return value::object_type{ { "type", "MultiPolygon" }, { "coordinates", convert(mpol) } };
+                    },
+                    [](const geometry_collection &gc) -> value {
+                        value::array_type geometries;
+                        geometries.reserve(gc.size());
+                        for (const auto &gcGeom : gc) {
+                            geometries.push_back(convert(gcGeom));
+                        }
+                        return value::object_type{ { "type", "GeometryCollection" },
+                                                   { "geometries", std::move(geometries) } };
+                    } },
+        geom);
 }
 
 template <>
@@ -263,10 +283,12 @@ value convert(const feature &f) {
                                { "geometry", convert(f.geometry) },
                                { "properties", f.properties } };
 
-    if (!f.id.is<maplibre::geojson::null_value_t>()) {
-        value id = f.id.match([](uint64_t n) -> value { return n; }, [](int64_t n) -> value { return n; },
-                              [](double n) -> value { return n; }, [](std::string s) -> value { return s; },
-                              [](const auto &) -> value { throw error("Unknown type for a Feature 'id'"); });
+    if (!std::holds_alternative<maplibre::geojson::null_value_t>(f.id)) {
+        value id =
+            std::visit(overloaded{ [](uint64_t n) -> value { return n; }, [](int64_t n) -> value { return n; },
+                                   [](double n) -> value { return n; }, [](std::string s) -> value { return s; },
+                                   [](const auto &) -> value { throw error("Unknown type for a Feature 'id'"); } },
+                       f.id);
         result.emplace(std::make_pair("id", std::move(id)));
     }
 
@@ -291,8 +313,10 @@ value convert(const geojson &json) {
 }
 
 value convert(const geojson &json) {
-    return json.match([](const geometry &g) { return convert(g); }, [](const feature &f) { return convert(f); },
-                      [](const feature_collection &c) { return convert(c); });
+    return std::visit(overloaded{ [](const geometry &g) -> value { return convert(g); },
+                                  [](const feature &f) -> value { return convert(f); },
+                                  [](const feature_collection &c) -> value { return convert(c); } },
+                      json);
 }
 
 } // namespace geojson
