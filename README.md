@@ -1,3 +1,3 @@
-A C++14 library for converting GeoJSON into [geometry.hpp](https://github.com/mapbox/geometry.hpp) representation.
+[![MapLibre Logo](https://maplibre.org/img/maplibre-logo-big.svg)](https://maplibre.org/)
 
-[![Build Status](https://travis-ci.org/mapbox/geojson-cpp.svg?branch=master)](https://travis-ci.org/mapbox/geojson-cpp)
+A C++14 library for converting GeoJSON into [geometry.hpp](https://github.com/maplibre/geometry.hpp) representation.
