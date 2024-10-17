@@ -415,7 +415,7 @@ struct to_value {
         rapidjson_value result;
         result.SetArray();
         for (const auto &item : array) {
-            result.PushBack(item.visit(item, *this), allocator);
+            result.PushBack(std::visit(*this, item), allocator);
         }
         return result;
     }
@@ -430,7 +430,7 @@ struct to_value {
         for (const auto &property : map) {
             result.AddMember(
                 rapidjson::GenericStringRef<char>{ property.first.data(), rapidjson::SizeType(property.first.size()) },
-                value::visit(property.second, *this), allocator);
+                std::visit(*this, property.second), allocator);
         }
         return result;
     }
@@ -442,16 +442,17 @@ struct to_value {
 
 template <>
 rapidjson_value convert<geometry>(const geometry &element, rapidjson_allocator &allocator) {
-    if (element.is<empty>())
+    if (std::holds_alternative<empty>(element))
         return rapidjson_value(rapidjson::kNullType);
 
     rapidjson_value result(rapidjson::kObjectType);
 
-    result.AddMember("type", rapidjson::GenericStringRef<char>{ geometry::visit(element, to_type()) }, allocator);
+    result.AddMember("type", rapidjson::GenericStringRef<char>{ std::visit(to_type(), element) }, allocator);
 
-    result.AddMember(
-        rapidjson::GenericStringRef<char>{ element.is<geometry_collection>() ? "geometries" : "coordinates" },
-        geometry::visit(element, to_coordinates_or_geometries{ allocator }), allocator);
+    result.AddMember(rapidjson::GenericStringRef<char>{ std::holds_alternative<geometry_collection>(element)
+                                                            ? "geometries"
+                                                            : "coordinates" },
+                     std::visit(to_coordinates_or_geometries{ allocator }, element), allocator);
 
     return result;
 }
@@ -461,8 +462,8 @@ rapidjson_value convert<feature>(const feature &element, rapidjson_allocator &al
     rapidjson_value result(rapidjson::kObjectType);
     result.AddMember("type", "Feature", allocator);
 
-    if (!element.id.is<null_value_t>()) {
-        result.AddMember("id", identifier::visit(element.id, to_value{ allocator }), allocator);
+    if (!std::holds_alternative<null_value_t>(element.id)) {
+        result.AddMember("id", std::visit(to_value{ allocator }, element.id), allocator);
     }
 
     result.AddMember("geometry", convert(element.geometry, allocator), allocator);
@@ -491,7 +492,7 @@ rapidjson_value convert(const geojson &element, rapidjson_allocator &allocator) 
 }
 
 rapidjson_value convert(const geojson &element, rapidjson_allocator &allocator) {
-    return geojson::visit(element, [&](const auto &alternative) { return convert(alternative, allocator); });
+    return std::visit([&](const auto &alternative) { return convert(alternative, allocator); }, element);
 }
 
 template <class T>
@@ -515,7 +516,7 @@ std::string stringify(const geojson &element) {
 }
 
 std::string stringify(const geojson &element) {
-    return geojson::visit(element, [](const auto &alternative) { return stringify(alternative); });
+    return std::visit([](const auto &alternative) { return stringify(alternative); }, element);
 }
 
 } // namespace geojson

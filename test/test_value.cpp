@@ -79,7 +79,7 @@ void test(const std::string &path, bool use_convert = false) {
     assert(expected == result);
     assert(expected == resultFromStringValue);
     assert(expected == roundTrip);
-    assert(result.is<Expected>());
+    assert(std::holds_alternative<Expected>(result));
 }
 
 int main() {
