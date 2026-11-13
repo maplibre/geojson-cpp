@@ -1,0 +1,8 @@
+{
+    "type": "Feature",
+    "properties": {},
+    "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [30, 40]
+    }
+}
