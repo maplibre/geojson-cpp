@@ -34,6 +34,10 @@ void validatePolygon(const rapidjson_value &json) {
 }
 
 void validateLineString(const rapidjson_value &json) {
+    // this check is required in case of multilinestring validation
+    if (!json.IsArray()) {
+        throw error("Coordinates must be nested more deeply.");
+    }
     if (json.GetArray().Size() < 2) {
         throw error("A line string must have two or more coordinate points.");
     }
@@ -49,6 +53,8 @@ point convert<point>(const rapidjson_value &json) {
     }
     if (json.Size() < 2)
         throw error("coordinates array must have at least 2 numbers");
+    if (!json[0].IsNumber() || !json[1].IsNumber())
+        throw error("coordinates array must contain numbers");
 
     return point{ json[0].GetDouble(), json[1].GetDouble() };
 }
@@ -84,6 +90,8 @@ geometry convert<geometry>(const rapidjson_value &json) {
         throw error("Geometry must have a type property");
 
     const auto &type = type_itr->value;
+    if (!type.IsString())
+        throw error("Geometry type must be a string");
 
     if (type == "GeometryCollection") {
         const auto &geometries_itr = json.FindMember("geometries");

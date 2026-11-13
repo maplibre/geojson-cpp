@@ -289,6 +289,27 @@ static void testParseErrorHandling() {
     } catch (const std::runtime_error &err) {
         assert(std::string(err.what()).find("two or more") != std::string::npos);
     }
+
+    try {
+        readGeoJSON("test/fixtures/invalid-multi-line-string-2.json", false);
+        assert(false && "Should have thrown an error");
+    } catch (const std::runtime_error &err) {
+        assert(std::string(err.what()).find("nested more deeply") != std::string::npos);
+    }
+
+    try {
+        readGeoJSON("test/fixtures/invalid-point.json", false);
+        assert(false && "Should have thrown an error");
+    } catch (const std::runtime_error &err) {
+        assert(std::string(err.what()).find("numbers") != std::string::npos);
+    }
+
+    try {
+        readGeoJSON("test/fixtures/invalid-geometry-type.json", false);
+        assert(false && "Should have thrown an error");
+    } catch (const std::runtime_error &err) {
+        assert(std::string(err.what()).find("type must be a string") != std::string::npos);
+    }
 }
 
 void testAll(bool use_convert) {
